@@ -48,7 +48,7 @@ def calculate_session_end_time(start_time, inactivity_time):
         endtime: session end time
     '''
 
-    return (start_time + timedelta(inactivity_time))
+    return (start_time + timedelta(seconds = inactivity_time))
 
 
 def parse_log_line(line):
@@ -59,8 +59,6 @@ def parse_log_line(line):
 
     if len(record)!=15:
         return None
-
-    print(datetime.strptime((record[1] + ' ' + record[2]), '%Y-%m-%d %H:%M:%S'))
 
     ip_addess = record[0]
     try:
@@ -89,19 +87,23 @@ def parse_log_file(log_file, inactivity_time, sessionization_file):
             number_of_corrupted += 1
 
         try :
+            print(session_dict[ip_addess][2] < log_datetime)
             if session_dict[ip_addess][2] < log_datetime:
-                with open(sessionization_file, 'w+') as f:
-                    f.write('%s,%s,%s,%i' % (ip_addess, session_dict[ip_addess][1], session_dict[ip_addess][2], session_dict[ip_addess][0]))
+                with open(sessionization_file, 'a') as f:
+                    f.write('%s,%s,%s,%i,%i\n' % (ip_addess, session_dict[ip_addess][1], (session_dict[ip_addess][2] - timedelta(seconds = inactivity_time)),\
+                                        (session_dict[ip_addess][2] - timedelta(seconds = inactivity_time -1) - session_dict[ip_addess][1]).total_seconds(), session_dict[ip_addess][0]))
                 session_dict.pop(ip_addess)
+                session_dict[ip_addess] = [1.0, log_datetime, calculate_session_end_time(log_datetime, inactivity_time)]
             else:
                 session_dict[ip_addess][0] += 1
                 session_dict[ip_addess][2] = calculate_session_end_time(log_datetime, inactivity_time)
         except KeyError:
             session_dict[ip_addess] = [1.0, log_datetime, calculate_session_end_time(log_datetime, inactivity_time)]
 
-    for ip_addess in session_dict:
-        f = open(sessionization_file, 'w+')
-        f.write('%s,%s,%s,%i' % (ip_addess, session_dict[ip_addess][1], session_dict[ip_addess][2], session_dict[ip_addess][0]))
+    with open(sessionization_file, 'a') as f:
+        for ip_addess in session_dict:
+            f.write('%s,%s,%s,%i,%i\n' % (ip_addess, session_dict[ip_addess][1], (session_dict[ip_addess][2] - timedelta(seconds = inactivity_time)),\
+                                (session_dict[ip_addess][2] - timedelta(seconds = inactivity_time -1) - session_dict[ip_addess][1]).total_seconds(), session_dict[ip_addess][0]))
 
 
 
