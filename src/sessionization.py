@@ -1,3 +1,7 @@
+import argparse
+from datetime import datetime, timedelta
+import sys
+
 
 def parse_args():
     '''
@@ -5,9 +9,9 @@ def parse_args():
     '''
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--log_file', type=str, default='log_file.csv',\
-                                help='Total number of drones deployed')
+                                help='name of the log file')
     parser.add_argument('--inactivity_file', type=str, default= 'inactivity_file.txt', \
-                                metavar='N', nargs = '+', help='name of the inactivity file')
+                                    help='name of the inactivity file')
     parser.add_argument('--sessionization_file', type=str, default='sessionization.csv', \
                                 help='name of the sessionization file')
     args = parser.parse_args()
@@ -21,18 +25,18 @@ def parse_inactivity_file(inactivity_file):
             input : inactivity file
             output : inactivity time in seconds
     '''
+    try:
+        f = open(inactivity_file, 'r')
         try:
-            f = open(inactivity_file, 'r')
-            try:
-                inactivity_time = int(f.readline())
-            except ValueError:
-                sys.exit('Unable to parse ' + inactivity_file)
-        except FileNotFoundError:
-            sys.exit(inactivity_file + ' not found')
-        except IOError : # file doesnt have write permissions
-            sys.exit(inactivity_file + ' not accessible')
-        except:
-            sys.exit('Unable to open ' + inactivity_file)
+            inactivity_time = int(f.readline())
+        except ValueError:
+            sys.exit('Unable to parse ' + inactivity_file)
+    except FileNotFoundError:
+        sys.exit(inactivity_file + ' not found')
+    except IOError : # file doesnt have write permissions
+        sys.exit(inactivity_file + ' not accessible')
+    except:
+        sys.exit('Unable to open ' + inactivity_file)
 
     return inactivity_time
 
@@ -56,12 +60,11 @@ def parse_log_line(line):
     if len(record)!=15:
         return None
 
+    print(datetime.strptime((record[1] + ' ' + record[2]), '%Y-%m-%d %H:%M:%S'))
 
     ip_addess = record[0]
-
-    time = record.split(':')
     try:
-        log_datetime = datetime.strptime((record[1] + ' ' + record[2]), '%y-%m-%d %h:%m:%s')
+        log_datetime = datetime.strptime((record[1] + ' ' + record[2]), '%Y-%m-%d %H:%M:%S')
     except ValueError:
         return None
 
@@ -77,10 +80,13 @@ def parse_log_file(log_file, inactivity_time, sessionization_file):
 
     file.readline() # bypass header line
 
+    number_of_corrupted = 0
     session_dict = {}
     for line in file:
-
-        ip_addess, log_datetime = parse_log_line(line)
+        try:
+            ip_addess, log_datetime = parse_log_line(line)
+        except TypeError:
+            number_of_corrupted += 1
 
         try :
             if session_dict[ip_addess][2] < log_datetime:
