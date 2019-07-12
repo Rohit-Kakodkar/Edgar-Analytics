@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime, timedelta
 import sys
+from queue import Queue
 
 
 def parse_args():
@@ -80,32 +81,47 @@ def parse_log_file(log_file, inactivity_time, sessionization_file):
 
     number_of_corrupted = 0
     session_dict = {}
+    q = Queue()
+
+    first_time = True
+    start_getting = False
     for line in file:
         try:
             ip_addess, log_datetime = parse_log_line(line)
         except TypeError:
             number_of_corrupted += 1
+            continue
+
+        if first_time:
+            start_time = log_datetime
+
+        if (start_time + timedelta(seconds = inactivity_time)) <= log_datetime:
+            start_getting = True
+
+        q.put((ip_addess, log_datetime))
+
+        if start_getting:
+            expired_ip, expired_log_time = q.get()
+            if ((expired_log_time + timedelta(seconds = 2)) == session_dict[expired_ip][2]):
+                with open(sessionization_file, 'a') as f:
+                    f.write('%s,%s,%s,%i,%i\n' % (expired_ip, session_dict[expired_ip][1], (session_dict[expired_ip][2] - timedelta(seconds = inactivity_time)),\
+                                        (session_dict[expired_ip][2] - timedelta(seconds = inactivity_time -1) - session_dict[expired_ip][1]).total_seconds(), session_dict[expired_ip][0]))
+                session_dict.pop(expired_ip)
 
         try :
-            print(session_dict[ip_addess][2] < log_datetime)
-            if session_dict[ip_addess][2] < log_datetime:
-                with open(sessionization_file, 'a') as f:
-                    f.write('%s,%s,%s,%i,%i\n' % (ip_addess, session_dict[ip_addess][1], (session_dict[ip_addess][2] - timedelta(seconds = inactivity_time)),\
-                                        (session_dict[ip_addess][2] - timedelta(seconds = inactivity_time -1) - session_dict[ip_addess][1]).total_seconds(), session_dict[ip_addess][0]))
-                session_dict.pop(ip_addess)
-                session_dict[ip_addess] = [1.0, log_datetime, calculate_session_end_time(log_datetime, inactivity_time)]
-            else:
-                session_dict[ip_addess][0] += 1
-                session_dict[ip_addess][2] = calculate_session_end_time(log_datetime, inactivity_time)
+            session_dict[ip_addess][0] += 1
+            session_dict[ip_addess][2] = calculate_session_end_time(log_datetime, inactivity_time)
         except KeyError:
             session_dict[ip_addess] = [1.0, log_datetime, calculate_session_end_time(log_datetime, inactivity_time)]
+
+
+
+        first_time = False
 
     with open(sessionization_file, 'a') as f:
         for ip_addess in session_dict:
             f.write('%s,%s,%s,%i,%i\n' % (ip_addess, session_dict[ip_addess][1], (session_dict[ip_addess][2] - timedelta(seconds = inactivity_time)),\
                                 (session_dict[ip_addess][2] - timedelta(seconds = inactivity_time -1) - session_dict[ip_addess][1]).total_seconds(), session_dict[ip_addess][0]))
-
-
 
 if __name__ == '__main__':
     '''

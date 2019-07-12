@@ -4,11 +4,11 @@
 
 
 # check if output file exists
-FILE='test_output/sessionization_file.csv'
+FILE='test/output/sessionization_file.csv'
 
 if test -f "$FILE"; then
     rm $FILE
 fi
 touch $FILE
 
-python src/sessionization.py --log_file test_input/log.csv --inactivity_file test_input/inactivity_period.txt --sessionization_file $FILE
+python src/sessionization.py --log_file test/input/log.csv --inactivity_file test/input/inactivity_period.txt --sessionization_file $FILE
